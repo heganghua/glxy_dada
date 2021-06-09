@@ -11,8 +11,9 @@ import pymysql
 
 
 class GetCompanyInfo:
-    def __init__(self):
 
+    def __init__(self):
+        """初始化"""
         self.conn = pymysql.connect(
             host='127.0.0.1',
             user='root',
