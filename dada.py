@@ -125,9 +125,6 @@ if __name__ == '__main__':
 
 
 
-
-
-
 # workbook = xlrd.open_workbook(path + "/company.xlsx")
 # sheet = workbook.sheet_by_name('Sheet1')
 # col = sheet.col_values(0)
