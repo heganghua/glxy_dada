@@ -51,9 +51,7 @@ for j in range(0, len(col)):
     time.sleep(0.5)
     print(item)
 
-#
-#
-#
+
 # resp = requests.get(url=url, headers=headers, cookies=cookies)
 # # print(resp.text)
 # html = etree.HTML(resp.text)

@@ -17,14 +17,14 @@ class GetCompanyInfo:
         self.conn = pymysql.connect(
             host='127.0.0.1',
             user='root',
-            passwd='root',
+            passwd='root@12306',
             db='datacenter',
             port=3306,
             charset='utf8')
         self.cursor = self.conn.cursor()
 
         self.url = "https://glxy.mot.gov.cn/company/getCompanyAptitude.do"
-        self.company_achieve_list_url = "https://glxy.mot.gov.cn/company/getCompanyAchieveList.do?companyId={companyId}&type=11"
+        # self.company_achieve_list_url = "https://glxy.mot.gov.cn/company/getCompanyAchieveList.do?companyId={companyId}&type=11"
         self.headers = {
             "Host": "glxy.mot.gov.cn",
             "Connection": "keep-alive",
@@ -41,7 +41,7 @@ class GetCompanyInfo:
             "Accept-Language": "zh-CN,zh;q=0.9,und;q=0.8,en;q=0.7"
         }
         self.cookies = {
-            "JSESSIONID": "62324EB4A1F24BA135DABBECF55BE147"
+            "JSESSIONID": "C6BA516E0760137944D7167F996BFA54"
         }
         self.data = {
             "page": "1",
@@ -67,7 +67,7 @@ class GetCompanyInfo:
         # self.worksheet = workbook.add_worksheet()
         # self.worksheet.write('A1', 'companyName')
         # self.worksheet.write('B1', 'companyId')
-        # self.rowNum = 0
+        self.rowNum = 0
 
     def _close_database_connection(self):
         print("Is closing connection...")
@@ -77,17 +77,17 @@ class GetCompanyInfo:
 
     def requestCompanyInfo(self):
         """请求公司列表"""
-        for page in range(1, 727):
+        for page in range(675, 727):
             print("页码：", str(page))
             self.data["page"] = str(page)
             self.getInfoProcess()
+            # break
         # 关闭连接
         self._close_database_connection()
 
+
     def getInfoProcess(self):
-        """
-            获取公司相关信息，
-        """
+        """ 获取公司相关信息，"""
         # 请求列表
         response = requests.post(url=self.url, headers=self.headers, cookies=self.cookies,
                                  data=self.data, verify=False)
@@ -99,7 +99,7 @@ class GetCompanyInfo:
             corpName = row["corpName"]
             print(corpName, id)
             self.rowNum += 1
-            # self.saveData(corpName, id)
+            self.saveDataForMySQL(corpName, id)
 
     def saveDataForExcel(self, companyName, companyId):
         """保存到Excel"""
@@ -108,7 +108,6 @@ class GetCompanyInfo:
 
     def saveDataForMySQL(self, companyName, companyId):
         """保存到数据"""
-
         sql = 'insert into dada_company(company_name, company_id) values(%s, %s)'
         values = (companyName, companyId)
         try:
@@ -118,10 +117,82 @@ class GetCompanyInfo:
             self._close_database_connection()
             print(e)
 
+    def selectDataCompany(self):
+        """ 查询公司信息"""
+        sql = "select * from dada_company;"
+        try:
+            self.cursor.execute(sql)
+            result = self.cursor.fetchall()
+        except Exception as e:
+            self._close_database_connection()
+            print(e)
+        return result
+
+    """
+        程序开始
+    """
+    def getConstructionMarketCreditInfo(self):
+        """全国公路建设市场信用信息查询"""
+        companyList = self.selectDataCompany()
+        # 循环公司列表
+        for i in range(13, len(companyList)):
+            company = companyList[i]
+            print("第" + str(i) + "公司：名称：" + company[1] + "id: " + company[2])
+            resJson = self.getPerformanceInfoList(company[2], 1)
+            if resJson is None:
+                continue
+            countSize = resJson["pageObj"]["countSize"]
+            if countSize is None or countSize == 0:
+                continue
+            # 循环第一页项目列表
+            projectList = resJson["rows"]
+            # print(projectList)
+            for item in projectList:
+                id = item["id"]
+                # 详细信息
+                print("公司ID：" + company[2]+"; " + "ID: " + id)
+                performanceDetail = self.getPerformanceDetail(company[2], id)
+                print(performanceDetail)
+
+                # 提取信息， 保存数据 TODO
+
+            # # 循环公司下得所有业绩信息
+            # for page in range(2, countSize+1):
+            #     companyInfo = self.getPerformanceDetail(company[2], page)
+            #     projectList = companyInfo["rows"]
+            #     for item in projectList:
+            #         id = item["id"]
+            #         # 详细信息
+            #         self.getPerformanceDetail(company[2], id)
+            #         # 提取信息， 保存数据 TODO
+
+
+    def getPerformanceDetail(self, companyId, id):
+        """ 获取业绩信息详情"""
+
+        detailUrl = "https://glxy.mot.gov.cn/company/getCompanyAchieveInfo.do?id={}&companyid={}".format(id, companyId)
+        response = requests.post(url=detailUrl, headers=self.headers, cookies=self.cookies, verify=False)
+        resJson = json.loads(response.text)
+        return resJson
+
+    def getPerformanceInfoList(self, companyId, pageNumber):
+        """获取业绩信息(总包业绩-以建)列表"""
+        infoListUrl = "https://glxy.mot.gov.cn/company/getCompanyAchieveList.do?companyId={}&type=11".format(companyId)
+
+        formData = {
+            "page": pageNumber,
+            "rows": 15,
+            "sourceInfo": 1
+        }
+        response = requests.post(url=infoListUrl, headers=self.headers, cookies=self.cookies, data=formData, verify=False)
+        resJson = json.loads(response.text)
+        # print(resJson)
+        return resJson
+
 
 if __name__ == '__main__':
     gc = GetCompanyInfo()
-    gc.requestCompanyInfo()
+    gc.getConstructionMarketCreditInfo()
 
 
 
