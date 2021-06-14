@@ -167,6 +167,55 @@ class GetCompanyInfo:
             #         # 提取信息， 保存数据 TODO
 
 
+    """
+        保存详细信息
+    """
+    def savaDeatilInfo(self, data):
+        if data is None or data["data"] == "null":
+            "数据列表为空"
+            return
+        # 企业名称
+        corpName = data["corpName"]
+        # 工程名称
+        projectName = data["projectName"]
+        # 项目类型
+        projectType = data["projectType"]
+        # 合同价（万元）
+        contractPrice = data["contractPrice"]
+        # 结算价（万元）
+        settlementPrice = data["settlementPrice"]
+        # 技术等级
+        technologyGrade = data["technologyGrade"]
+        # 合同段名称
+        segmentName = data["segmentName"]
+        # 开工日期
+        beginDate = data["beginDate"]
+        # 交工日期
+        handDate = handDate = data["handDate"]
+        # 竣工日期
+        endDate = data["endDate"]
+        # 建设状态
+        projectStatus = data["projectStatus"]
+        # 合同段开始桩号
+        stakeStart = data["stakeStart"]
+        # 合同段结束桩号
+        stakeEnd = data["stakeEnd"]
+        # 质量评定情况
+        quality = data["quality"]
+        # 所在省份
+        province = data["province"]
+        # 项目代码
+        projectCode = data["projectCode"]
+        # 主要工程量
+        remark = data["remark"]
+        sql = "insert into data_result valeus()"
+
+
+
+
+
+
+
     def getPerformanceDetail(self, companyId, id):
         """ 获取业绩信息详情"""
 
