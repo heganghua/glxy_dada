@@ -8,6 +8,7 @@ import time
 from xlutils.copy import copy
 import os
 import pymysql
+import math
 
 
 class GetCompanyInfo:
@@ -85,7 +86,6 @@ class GetCompanyInfo:
         # 关闭连接
         self._close_database_connection()
 
-
     def getInfoProcess(self):
         """ 获取公司相关信息，"""
         # 请求列表
@@ -100,6 +100,23 @@ class GetCompanyInfo:
             print(corpName, id)
             self.rowNum += 1
             self.saveDataForMySQL(corpName, id)
+
+    """ 获取企业资质"""
+    def getEnterpriseCertification(self, companyId):
+        url = "https://glxy.mot.gov.cn/company/getCompanyAptitudeList.do?comId={}".format(companyId)
+        data = {
+            "page": 1,
+            "rows": 100
+        }
+        resposne = requests.psot(url=self.url, headers=self.headers, cookies=self.cookies, data=data, verify=False)
+        resJson = json.loads(resposne.text)
+        # 企业资质列表
+        rows = resJson["rows"]
+        res = ""
+        for item in rows:
+            res += item["caname"] + "|" + item["catype"] + "|" + item["grade"] + "/"
+
+
 
     def saveDataForExcel(self, companyName, companyId):
         """保存到Excel"""
@@ -135,45 +152,53 @@ class GetCompanyInfo:
         """全国公路建设市场信用信息查询"""
         companyList = self.selectDataCompany()
         # 循环公司列表
-        for i in range(13, len(companyList)):
+        for i in range(1868, len(companyList)):
             company = companyList[i]
-            print("第" + str(i) + "公司：名称：" + company[1] + "id: " + company[2])
+            print("开始========第" + str(i) + "公司：名称：" + company[1] + "id: " + company[2])
             resJson = self.getPerformanceInfoList(company[2], 1)
             if resJson is None:
                 continue
             countSize = resJson["pageObj"]["countSize"]
             if countSize is None or countSize == 0:
                 continue
+
             # 循环第一页项目列表
             projectList = resJson["rows"]
-            # print(projectList)
             for item in projectList:
                 id = item["id"]
                 # 详细信息
                 print("公司ID：" + company[2]+"; " + "ID: " + id)
                 performanceDetail = self.getPerformanceDetail(company[2], id)
-                print(performanceDetail)
-
+                performanceDetail['data']["id"] = company[2]
+                # print(performanceDetail)
                 # 提取信息， 保存数据 TODO
+                self.savaDeatilInfo(company[2], performanceDetail)
 
-            # # 循环公司下得所有业绩信息
-            # for page in range(2, countSize+1):
-            #     companyInfo = self.getPerformanceDetail(company[2], page)
-            #     projectList = companyInfo["rows"]
-            #     for item in projectList:
-            #         id = item["id"]
-            #         # 详细信息
-            #         self.getPerformanceDetail(company[2], id)
-            #         # 提取信息， 保存数据 TODO
-
+            # 循环公司下得所有业绩信息
+            totailPage = math.ceil(countSize/15)
+            for page in range(2, totailPage+1):
+                companyInfo = self.getPerformanceInfoList(company[2], page)
+                projectList = companyInfo["rows"]
+                for item in projectList:
+                    id = item["id"]
+                    # 详细信息
+                    performanceDetail = self.getPerformanceDetail(company[2], id)
+                    # print(performanceDetail)
+                    # 提取信息， 保存数据 TODO
+                    self.savaDeatilInfo(company[2], performanceDetail)
+            print("结束========第" + str(i) + "公司：名称：" + company[1] + "id: " + company[2])
+            # break
 
     """
         保存详细信息
     """
-    def savaDeatilInfo(self, data):
+    def savaDeatilInfo(self, companyId, data):
         if data is None or data["data"] == "null":
             "数据列表为空"
             return
+        data = data['data']
+        # 企业ID
+        id = companyId
         # 企业名称
         corpName = data["corpName"]
         # 工程名称
@@ -208,17 +233,19 @@ class GetCompanyInfo:
         projectCode = data["projectCode"]
         # 主要工程量
         remark = data["remark"]
-        sql = "insert into data_result valeus()"
-
-
-
-
-
-
+        sql = "insert into data_result values(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        values = (id, corpName, projectName, projectType, contractPrice, settlementPrice, technologyGrade,
+                    segmentName, beginDate, handDate, endDate, projectStatus,
+                    stakeStart, stakeEnd, quality, province, projectCode, remark, "")
+        try:
+            self.cursor.execute(sql, values)
+            self.conn.commit()
+        except Exception as e:
+            self._close_database_connection()
+            print(e)
 
     def getPerformanceDetail(self, companyId, id):
         """ 获取业绩信息详情"""
-
         detailUrl = "https://glxy.mot.gov.cn/company/getCompanyAchieveInfo.do?id={}&companyid={}".format(id, companyId)
         response = requests.post(url=detailUrl, headers=self.headers, cookies=self.cookies, verify=False)
         resJson = json.loads(response.text)
@@ -240,6 +267,7 @@ class GetCompanyInfo:
 
 
 if __name__ == '__main__':
+    # print(math.ceil(32 / 15))
     gc = GetCompanyInfo()
     gc.getConstructionMarketCreditInfo()
 
