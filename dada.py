@@ -42,7 +42,7 @@ class GetCompanyInfo:
             "Accept-Language": "zh-CN,zh;q=0.9,und;q=0.8,en;q=0.7"
         }
         self.cookies = {
-            "JSESSIONID": "C6BA516E0760137944D7167F996BFA54"
+            "JSESSIONID": "ED9951F8D6C4C064253D6C12E532F541"
         }
         self.data = {
             "page": "1",
@@ -86,7 +86,7 @@ class GetCompanyInfo:
         # 关闭连接
         self._close_database_connection()
 
-    def getInfoProcess(self):
+    def _getInfoProcess(self):
         """ 获取公司相关信息，"""
         # 请求列表
         response = requests.post(url=self.url, headers=self.headers, cookies=self.cookies,
@@ -101,6 +101,20 @@ class GetCompanyInfo:
             self.rowNum += 1
             self.saveDataForMySQL(corpName, id)
 
+    """
+        循环公司获取企业资质信息
+    """
+    def _loopCompanyList(self):
+        companyList = self.selectDataCompany()
+        # 循环公司列表
+        for i in range(8184, len(companyList)):
+            company = companyList[i]
+            companyName = company[1]
+            companyId = company[2]
+            print("开始========第" + str(i) + "公司：名称：" + companyName + "id: " + companyId)
+            res = self.getEnterpriseCertification(companyId)
+            self.saveEnterpriseCertification(companyId, res)
+
     """ 获取企业资质"""
     def getEnterpriseCertification(self, companyId):
         url = "https://glxy.mot.gov.cn/company/getCompanyAptitudeList.do?comId={}".format(companyId)
@@ -108,14 +122,17 @@ class GetCompanyInfo:
             "page": 1,
             "rows": 100
         }
-        resposne = requests.psot(url=self.url, headers=self.headers, cookies=self.cookies, data=data, verify=False)
+        resposne = requests.post(url=url, headers=self.headers, cookies=self.cookies, data=data, verify=False)
         resJson = json.loads(resposne.text)
         # 企业资质列表
         rows = resJson["rows"]
         res = ""
+        # print(rows)
         for item in rows:
             res += item["caname"] + "|" + item["catype"] + "|" + item["grade"] + "/"
-
+        # print(companyId + "===================")
+        print(res)
+        return res
 
 
     def saveDataForExcel(self, companyName, companyId):
@@ -134,6 +151,21 @@ class GetCompanyInfo:
             self._close_database_connection()
             print(e)
 
+    """
+        保存企业资质
+    """
+    def saveEnterpriseCertification(self, companyId, res):
+        sql = "update dada_company set enterprise_certification = %s where company_id = %s"
+        values = (res, companyId)
+        try:
+            self.cursor.execute(sql, values)
+            self.conn.commit()
+        except Exception as e:
+            self._close_database_connection()
+            print(e)
+        print(companyId + "：修改成功！")
+
+
     def selectDataCompany(self):
         """ 查询公司信息"""
         sql = "select * from dada_company;"
@@ -146,13 +178,13 @@ class GetCompanyInfo:
         return result
 
     """
-        程序开始
+        获取详细信息程序开始
     """
-    def getConstructionMarketCreditInfo(self):
+    def _getConstructionMarketCreditInfo(self):
         """全国公路建设市场信用信息查询"""
         companyList = self.selectDataCompany()
         # 循环公司列表
-        for i in range(1868, len(companyList)):
+        for i in range(10880, len(companyList)):
             company = companyList[i]
             print("开始========第" + str(i) + "公司：名称：" + company[1] + "id: " + company[2])
             resJson = self.getPerformanceInfoList(company[2], 1)
@@ -269,7 +301,10 @@ class GetCompanyInfo:
 if __name__ == '__main__':
     # print(math.ceil(32 / 15))
     gc = GetCompanyInfo()
-    gc.getConstructionMarketCreditInfo()
+    # 获取工程项目信息
+    # gc._getConstructionMarketCreditInfo()
+    # 获取公司企业资质信息
+    gc._loopCompanyList()
 
 
 
